@@ -17,16 +17,14 @@ mod vesting_contract {
     ///   - ZeroReleasableBalance: when the releasable balance is zero.
     ///   - Overflow: when an arithmetic operation resulted in an overflow.
     ///   - Underflow: when a substraction operation resulted in an underflow.
-    ///   - InvalidTimestamp: in cases where an error related to timestamp 
-    ///     calculations occurs.
-    /// 
-    #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
-    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    ///   - DivisionByZero: when a division operation resulted in a 
+    ///     division by zero. 
+    #[derive(Debug, PartialEq, Eq)]
+    #[ink::scale_derive(Encode, Decode, TypeInfo)]
     pub enum Error {
         ZeroReleasableBalance,
         Overflow,
         Underflow,
-        InvalidTimestamp,
         DivisionByZero,
     }
     pub type Result<T> = core::result::Result<T, Error>;
@@ -51,7 +49,6 @@ mod vesting_contract {
     ///
     /// # Note:
     /// The beneficiary cannot be the zero address.
-    ///
     impl VestingContract {
         #[ink(constructor, payable)]
         pub fn new(
@@ -127,9 +124,14 @@ mod vesting_contract {
         /// vesting ends.
         #[ink(message)]
         pub fn end_time(&self) -> Result<Timestamp> {
-            self.start_time()
+            let end_time = self.start_time()
             .checked_add(self.duration_time())
-            .ok_or(Error::Overflow)
+            .unwrap_or_else(|| panic!(
+                "An unexpected arithmetic error occurred 
+                when calculating the vesting end time."
+            ));
+
+            Ok(end_time)
         }
 
         /// This returns the amount of time remaining
@@ -140,8 +142,8 @@ mod vesting_contract {
                 let remaining_time = self.end_time()?
                     .checked_sub(self.time_now())
                     .unwrap_or_else(|| panic!(
-                        "An unexpected arithmetic error occurred 
-                        when calculating the remaining vesting duration."
+                        "An unexpected arithmetic error occurred when
+                        calculating the remaining vesting duration."
                     ));
 
                 Ok(remaining_time)
@@ -232,7 +234,6 @@ mod vesting_contract {
         /// If the vesting duration is 200 seconds and 100 seconds have
         /// passed since the start time, then 50% of the total_allocation
         /// would have vested.
-        ///
         pub fn vesting_schedule(
             &self,
             total_allocation: Balance,
@@ -246,7 +247,10 @@ mod vesting_contract {
 
                 let time_elapsed = current_time
                     .checked_sub(self.start_time())
-                    .ok_or(Error::InvalidTimestamp)?;
+                    .unwrap_or_else(|| panic!(
+                        "An unexpected arithmetic error occurred 
+                        when calculating the elapsed vesting time."
+                    ));
 
                 // This represents the portion of the total allocation 
                 // that has vested based on the time elapsed.

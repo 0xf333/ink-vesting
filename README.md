@@ -11,13 +11,13 @@ rustup component add rust-src && cargo install --force --locked cargo-contract
 
 ## Compile the vesting contract
 
-Navigate to the vesting directory
+Navigate to the vesting contract directory
 ```bash
 cd vesting 
 ```
 and then compile the contract.
 ```bash
-cargo vesting contract build
+cargo contract build
 ```
 1. Build artifacts will be located in `target/ink` directory.
 2. Use `vesting.contract` file to deploy the contract.
